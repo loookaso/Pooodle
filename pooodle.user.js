@@ -2,11 +2,11 @@
 // @name        Pooodle
 // @author      haicat
 // @namespace   http://doodleordie.com/profile/haicat
-// @downloadURL https://dl.dropboxusercontent.com/u/79927965/linked/Pooodle/Pooodle.user.js
+// @downloadURL https://raw.githubusercontent.com/haicat/Pooodle/master/pooodle.user.js
 // @description Extended drooodle functionality!
 // @include     http://www.drooodle.com/drdl
 // @include     http://www.drooodle.com/d/*/comment
-// @version     10
+// @version     11
 // @grant       none
 // ==/UserScript==
 
@@ -21,6 +21,10 @@
 
 Pooodle
 by haicat
+
+https://github.com/haicat
+https://github.com/haicat/Pooodle
+
 http://doodleordie.com/profile/haicat
 https://haicat.deviantart.com/
 
@@ -48,29 +52,7 @@ License: Apache Software License 2.0
 
 ***/
 
-/*
-CHANGELOG
-_________
 
-Version 10
-- Save canvas states before added functions to properly support undo ( D.notouch.saveActions(); )
-- Renamed iurl() to pasteImage()
-
-
-Version 9
-- Eyedropper
-- Font check function + more default fonts
-- Debug Terminal
-- Modding/Plugin API
-
-
-Version 8
-- Cleaned up message box code. Now it's own function instead of being created inline everytime like a derp
-- Moved everything that was being put into window into window.pdl
-- Popup message when the image that is to be pasted is loading
-- Option to use a proxy to bypass CORS issues (http://crossorigin.me/)
-- Text tool added
-*/
 
 //spectrum.js
 //---------------------------------------------------------------
@@ -117,6 +99,18 @@ background-color: rgba(255,50,50,1)!important;\
 li.terminalImportant{\
 background-color: rgba(50,100,255,1)!important;\
 }\
+li.terminalReturn{\
+color: rgba(200,200,200,1)!important;\
+font-size: 75%;\
+}\
+li.notifyEntry{\
+color: rgba(255,255,255,1);\
+width:100%;\
+wordWrap:break-word;\
+background-color: rgba(50,100,255,1);\
+border: 1px dashed white;\
+border-radius: 4px;\
+}\
 ";
 head.appendChild(pStyle);
 //
@@ -127,12 +121,149 @@ pdl.ready = 0;
 
 
 pdl.specialState = false;
-pdl.version = 10;
+pdl.version = 11;
 
 
 if(localStorage.getItem("pdl.showTerminal") == null){
     localStorage.setItem("pdl.showTerminal", "0");
 };
+
+
+//Settings
+if(localStorage.getItem("pdl.settings") == null){
+	pdl.settings = {};
+	pdl.settings.cursor = "crosshair";
+	pdl.settings.clear = false;//does nothing, functionality is in .apply
+	
+	localStorage.setItem("pdl.settings", JSON.stringify(pdl.settings));
+}else{
+	pdl.settings = JSON.parse(localStorage.getItem("pdl.settings"));
+};
+
+pdl.settingsData = {};
+pdl.settingsData.cursor = document.createElement("select");
+pdl.settingsData.cursor.innerHTML = "<option value='crosshair'>Crosshair</option><option value='circle'>Circle</option><option value='both'>Both</option>";
+pdl.settingsData.cursor.label = "Cursor type";
+pdl.settingsData.cursor.value = pdl.settings.cursor;
+pdl.settingsData.cursor.apply = function(){
+	pdl.settings.cursor = pdl.settingsData.cursor.value;
+	
+	switch(pdl.settings.cursor){
+		case "crosshair":
+			$("#tmp_canvas")[0].style.cursor = "crosshair";
+			pdl.circleCursor.style.display = "none";
+			break;
+		case "circle":
+			$("#tmp_canvas")[0].style.cursor = "none";
+			pdl.circleCursor.style.display = "block";
+			break;
+		case "both":
+			$("#tmp_canvas")[0].style.cursor = "crosshair";
+			pdl.circleCursor.style.display = "block";
+			break;
+			
+			
+		default:
+			pdl.settings.cursor = "both";
+			$("#tmp_canvas")[0].style.cursor = "crosshair!important";
+			break;
+	}
+};
+
+pdl.settingsData.clear = document.createElement("input");
+pdl.settingsData.clear.type = "checkbox";
+pdl.settingsData.clear.label = "Clear settings (requires refresh)"
+pdl.settingsData.clear.apply = function(){
+	if(pdl.settingsData.clear.checked == true){
+		console.log("settings cleared");
+		localStorage.removeItem("pdl.settings");
+		localStorage.removeItem("pdl.showTerminal");
+	}
+};
+
+//pdl.messageOverlay("title", "message", {style:"default", align:"center", opacity:0.5, behavior:"none"});
+pdl.settingsDialog = function(){
+	var dialog = pdl.messageOverlay("Pooodle Settings", "", {align: "left"});
+	
+	var contents = document.createElement("table");
+	
+	$.each(pdl.settingsData,function(i,v){
+		var row = document.createElement("tr");
+		var label = document.createElement("td");
+		var setting = document.createElement("td");
+		
+		row.appendChild(label);
+		row.appendChild(setting);
+		contents.appendChild(row);
+		
+		label.innerHTML = v.label;
+		
+		setting.appendChild(v);
+	});
+	
+	
+	dialog.message.body.appendChild(contents);
+	
+	var buttonClose = document.createElement("button");
+	buttonClose.innerHTML = "Close";
+	
+	dialog.message.body.appendChild(buttonClose);
+	
+	$(buttonClose).click(function(){
+		$.each((pdl.settingsData),function(i,v){
+			localStorage.setItem("pdl.settings", JSON.stringify(pdl.settings));
+			v.apply(true); //true if calling when closing dialog, false when running on startup. (startup call at end of script)
+			$(v).detach();
+			dialog.destroy();
+		});
+	});
+	
+	
+};
+
+
+
+
+//
+
+
+
+//Notification Area
+//---------------------------------------------------------------
+
+var notify = function(text){
+	var notification = document.createElement("li");
+	notification.innerHTML = text;
+	notification.className = "notifyEntry";
+	notify.body.list.appendChild(notification);
+	setTimeout(function(){
+		$(notification).fadeOut(500, function(){$(notification).remove()});
+	}, 5000);
+};
+pdl.notify = notify;
+notify.body = document.createElement("div");
+notify.body.style.zIndex = "10000001";
+notify.body.style.position = "fixed";
+notify.body.style.left = "0px";
+notify.body.style.width = "100%";
+notify.body.style.top = "0px";
+notify.body.style.height = "25%";
+notify.body.style.backgroundColor = "rgba(0,0,0,0)";
+notify.body.id = "terminal";
+notify.body.style.overflowY = "scroll";
+notify.body.style.overflowX = "hidden";
+notify.body.style.wordWrap = "break-word";
+notify.body.style.fontFamily = "Monospace";
+notify.body.style.paddingTop = "20px";
+notify.body.style.overflow = "hidden";
+notify.body.style.pointerEvents = "none";
+
+notify.body.list = document.createElement("ul");
+notify.body.list.style.listStyleType = "none";
+
+notify.body.appendChild(notify.body.list);
+body.appendChild(notify.body);
+
 
 //Terminal
 //---------------------------------------------------------------
@@ -167,12 +298,13 @@ terminal.body.style.top = "0px";
 terminal.body.style.height = "25%";
 terminal.body.style.backgroundColor = "rgba(10,10,10,0.7)";
 terminal.body.id = "terminal";
-terminal.body.style.zIndex = "10000001";
+terminal.body.style.zIndex = "10000002";
 terminal.body.style.overflowY = "scroll";
 terminal.body.style.overflowX = "hidden";
 terminal.body.style.wordWrap = "break-word";
 terminal.body.style.fontFamily = "Monospace";
 terminal.body.style.paddingTop = "20px"
+terminal.body.style.paddingBottom = "20px";
 
 terminal.body.style.display = "none";//doing it this way in case localstorage isnt supported
 if(localStorage.getItem("pdl.showTerminal") == "1"){terminal.body.style.display = "block";};
@@ -195,6 +327,62 @@ terminal.menu.buttonClose.onclick = function(){
     terminal.close();
 };
 
+//input
+terminal.input = document.createElement("input");
+terminal.input.history = [""];
+terminal.input.hisLoc = 0;
+
+$(terminal.input).keydown(function(e){
+	if(terminal.input.hisLoc == 0){terminal.input.history[0] = terminal.input.value;}
+	if(e.keyCode == 13){
+		terminal.input.history[0] = terminal.input.value;
+		terminal.input.history.unshift("");
+		try{
+			var output = eval(terminal.input.value);//new Function(terminal.input.value)();
+			terminal.return(output);
+		} catch(err){
+				terminal.error(err.message);
+		}
+		
+		terminal.input.value = "";
+		terminal.input.hisLoc = 0;
+		
+	}
+	
+	if(e.keyCode == 38 && terminal.input.hisLoc < (terminal.input.history.length-1)){
+		terminal.input.hisLoc++;
+		terminal.input.value = terminal.input.history[terminal.input.hisLoc];
+	}
+	
+	if(e.keyCode == 40 && terminal.input.hisLoc > 0){
+		terminal.input.hisLoc--;
+		terminal.input.value = terminal.input.history[terminal.input.hisLoc];
+	}
+	
+	e.stopPropagation();
+});
+
+$(terminal.input).keyup(function(e){
+	e.stopPropagation();
+});
+
+
+terminal.input.style.position = "fixed";
+terminal.input.style.width = "100%";
+terminal.input.style.bottom = "75%";
+terminal.input.style.backgroundColor = "rgba(50,50,50,1)";
+terminal.input.style.height = "16px";
+terminal.input.style.lineHeight = "16px";
+terminal.input.style.border = "1px dashed #fff";
+terminal.input.style.fontSize = "12px";
+terminal.input.style.color = "#fff";
+
+
+
+
+//
+
+terminal.body.appendChild(terminal.input);
 
 terminal.log = [];
 
@@ -218,7 +406,8 @@ terminal.write = function(text, caller){
 };
 
 terminal.error = function(text, caller){
-    if(caller){
+    var entry = document.createElement("li");
+	if(caller){
         if(caller.name){
             var bullet = document.createElement("a");
             bullet.innerHTML = "&#8226; ";
@@ -227,16 +416,17 @@ terminal.error = function(text, caller){
             entry.appendChild(bullet);
         }
     }
-    var entry = document.createElement("li");
     entry.className = "terminalEntry terminalError";
-    entry.innerHTML = text;
+    entry.innerHTML += text;
     terminal.log.push(entry);
     terminal.body.list.appendChild(entry);
-    terminal.body.scrollTop = terminal.body.scrollHeight;
+	terminal.open();
+	terminal.body.scrollTop = terminal.body.scrollHeight;
 };
 
 terminal.important = function(text, caller){//Todo: make this show a notification even when terminal is closed
-    if(caller){
+    var entry = document.createElement("li");
+	if(caller){
         if(caller.name){
             var bullet = document.createElement("a");
             bullet.innerHTML = "&#8226; ";
@@ -245,9 +435,27 @@ terminal.important = function(text, caller){//Todo: make this show a notificatio
             entry.appendChild(bullet);
         }
     }
-    var entry = document.createElement("li");
     entry.className = "terminalEntry terminalImportant";
-    entry.innerHTML = text;
+    entry.innerHTML += text;
+    terminal.log.push(entry);
+    terminal.body.list.appendChild(entry);
+    terminal.body.scrollTop = terminal.body.scrollHeight;
+	notify(entry.innerHTML);
+};
+
+terminal.return = function(text, caller){//Todo: make this show a notification even when terminal is closed
+    var entry = document.createElement("li");
+	if(caller){
+        if(caller.name){
+            var bullet = document.createElement("a");
+            bullet.innerHTML = "&#8226; ";
+            bullet.title = caller.name;
+            bullet.style.cursor = "help";
+            entry.appendChild(bullet);
+        }
+    }
+    entry.className = "terminalEntry terminalReturn";
+    entry.innerHTML += text;
     terminal.log.push(entry);
     terminal.body.list.appendChild(entry);
     terminal.body.scrollTop = terminal.body.scrollHeight;
@@ -267,6 +475,45 @@ pdl.ctx = c.getContext("2d");
 
 var sizeSlider = document.getElementById("brush_size");
 
+
+var drawCursor = document.createElement("div");
+pdl.circleCursor = drawCursor;
+drawCursor.style.backgroundImage = 'url(\'data:image/svg+xml;base64,'+btoa('<svg xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:svg="http://www.w3.org/2000/svg" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" stroke="black" stroke-width="1" fill="rgba(0,0,0,0)" /></svg>')+'\')';
+drawCursor.style.position = "fixed";
+drawCursor.style.zIndex = "999999";
+drawCursor.style.pointerEvents = "none";
+drawCursor.style.left = "0px";
+drawCursor.style.top  = "0px";
+drawCursor.style.width = "32px";
+drawCursor.style.height = "32px";
+
+drawCursor.id = "cursor";
+
+$(body).mousemove(function(evt){
+	if(
+		evt.clientX > $(c).offset().left &&
+		evt.clientX < $(c).offset().left+890 &&
+		evt.clientY > $(c).offset().top &&
+		evt.clientY < $(c).offset().top+530
+	){
+		drawCursor.style.backgroundImage = 'url(\'data:image/svg+xml;base64,'+btoa('<svg xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:svg="http://www.w3.org/2000/svg" xmlns="http://www.w3.org/2000/svg"><circle cx="'+(sizeSlider.value/2)+'" cy="'+(sizeSlider.value/2)+'" r="'+(sizeSlider.value/2)+'" stroke="black" stroke-width="1" fill="rgba(0,0,0,0)" /></svg>')+'\')';
+        drawCursor.style.left = (evt.clientX - (sizeSlider.value/2) )+"px";
+        drawCursor.style.top  = (evt.clientY - (sizeSlider.value/2) )+"px";
+		drawCursor.style.width = sizeSlider.value+"px";
+		drawCursor.style.height = sizeSlider.value+"px";
+	}
+});
+
+$("#slider-vertical").mousemove(function(evt){
+		drawCursor.style.backgroundImage = 'url(\'data:image/svg+xml;base64,'+btoa('<svg xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:svg="http://www.w3.org/2000/svg" xmlns="http://www.w3.org/2000/svg"><circle cx="'+(sizeSlider.value/2)+'" cy="'+(sizeSlider.value/2)+'" r="'+(sizeSlider.value/2)+'" stroke="black" stroke-width="1" fill="rgba(0,0,0,0)" /></svg>')+'\')';
+		drawCursor.style.width = sizeSlider.value+"px";
+		drawCursor.style.height = sizeSlider.value+"px";
+		drawCursor.style.left = ($(c).offset().left+445 - (sizeSlider.value/2)) + "px";
+		drawCursor.style.top =  ($(c).offset().top +265 - (sizeSlider.value/2)) + "px";
+});
+
+body.appendChild(drawCursor);
+
 var ptfont = document.createElement("select");
 ptfont.innerHTML ="<option>Monospace</option><option>Serif</option><option>Sans-Serif</option>";
 
@@ -279,11 +526,24 @@ pdl.setColor = function(color){
     $(ccol).trigger('click');
 };
 
+pdl.fontList = [];
 //Attempt to add a font to the list
 pdl.addFont = function(fontname){
     terminal.write("Adding font \""+fontname+"\"", this);
     var d = new Detector();
     if(d.detect(fontname)){
+		{
+			var tempName = fontname.toLowerCase();
+			var index = -1;
+			pdl.fontList.some(function(e, i){
+				if(tempName === e.toLowerCase()){
+					index = i;
+					return true;
+				}
+			});
+			if(index >- 1){return 2};
+		}
+		pdl.fontList.push(fontname);
         ptfont.innerHTML+=  ("<option>"+fontname+"</option>");
         return 0;
     }else{return 1;};
@@ -352,9 +612,24 @@ pdl.messageOverlay = function(title, message, options){
         emsg.style.border = "2px dashed rgb(40, 171, 226)";
         emsg.style.boxShadow = "4px 4px 4px 2px rgba(0, 0, 0, 0.5)";
         emsg.style.zIndex = "10000000";
-        emsg.innerHTML = "<div style='color: #a00;font-size:150%;text-align:center;'>"+title+"</div>"+
-            "<div style='text-align:"+options.align+"'>"+message+"</div>";
+        //emsg.innerHTML = "<div style='color: #a00;font-size:150%;text-align:center;'>"+title+"</div>"+
+        //    "<div style='text-align:"+options.align+"'>"+message+"</div>";
+		
+		var msgHead = document.createElement("div");
+		msgHead.style.color = "#a00";
+		msgHead.style.fontSize = "150%";
+		msgHead.style.textAlign = "center";
+		msgHead.innerHTML = title;
+		
+		var msgBody = document.createElement("div");
+		msgBody.style.textAlign = options.align;
+		msgBody.innerHTML = message;
+		emsg.appendChild(msgHead);
+		emsg.appendChild(msgBody);
+		emsg.head = msgHead;
+		emsg.body = msgBody;
         
+		overlay.message = emsg;
         overlay.appendChild(emsg);
         body.appendChild(overlay);
 		
@@ -715,6 +990,12 @@ terminalButton.style.fontSize = "80%";
 terminalButton.href = "javascript: void(0);";
 terminalButton.onclick = function(){terminal.open();};
 
+var settingsButton = document.createElement("a");
+settingsButton.innerHTML = "Settings";
+settingsButton.style.fontSize = "80%";
+settingsButton.href = "javascript: void(0);";
+settingsButton.onclick = function(){pdl.settingsDialog();};
+
 var pluginPanel = document.createElement("div");
 
 ccont.appendChild(iubox);
@@ -730,6 +1011,8 @@ ccont.appendChild(ptsize);
 ccont.appendChild(ptbutton);
 ccont.appendChild(document.createElement("br"));
 ccont.appendChild(terminalButton);
+ccont.appendChild(document.createElement("br"));
+ccont.appendChild(settingsButton);
 ccont.appendChild(pluginPanel);
 //I should clean up these variables
 //keyword: should
@@ -742,8 +1025,8 @@ pbar.style.right = "0px";
 pbar.style.bottom = "0px";
 pbar.style.zIndex = "100000";
 
-$.get("https://dl.dropboxusercontent.com/u/79927965/linked/Pooodle/version.log", function( cversion ) {
-    if (Number(cversion) > pdl.version){terminal.write("Update available! Newest version: "+cversion);pbar.innerHTML += ("<div style='border-radius:8px;padding:4px;background-color: #dd4444'><a href='https://dl.dropboxusercontent.com/u/79927965/linked/Pooodle/Pooodle.user.js'>Update available!</a></br>Latest version: "+cversion+"</div>");};
+$.get("https://raw.githubusercontent.com/haicat/Pooodle/master/version.log", function( cversion ) {
+    if (Number(cversion) > pdl.version){terminal.write("Update available! Newest version: "+cversion);pbar.innerHTML += ("<div style='border-radius:8px;padding:4px;background-color: #dd4444'><a href='https://raw.githubusercontent.com/haicat/Pooodle/master/pooodle.user.js'>Update available!</a></br>Latest version: "+cversion+"</div>");};
 });
 
 body.appendChild(pbar);
@@ -922,12 +1205,18 @@ pdl.addFont("Wingdings");
 pdl.addFont("Yu Gothic");
 pdl.addFont("Yu Gothic UI");
 pdl.addFont("Yu Mincho");
+	
+	
+	$.each((pdl.settingsData),function(i,v){ //apply settings
+	v.apply(false);
+	});
+	
+	
     terminal.important("Pooodle load complete!");
     $(document).trigger('pooodleLoaded');
     pdl.ready = 1;
 };
 
-setTimeout(loadFonts, 1);//make it async
 
 //plugin stuff
 
@@ -970,3 +1259,4 @@ pdl.plugin.register = function(name, author, version, requiredVersion){
 
 
 
+setTimeout(loadFonts, 1);//make it async

@@ -1,0 +1,28 @@
+CHANGELOG
+_________
+
+Version 11
+- Update server moved to github
+- Terminal input
+- Settings system
+- Setting for circle cursor
+- Cleanup for messageOverlay
+
+Version 10
+- Save canvas states before added functions to properly support undo ( D.notouch.saveActions(); )
+- Renamed iurl() to pasteImage()
+
+
+Version 9
+- Eyedropper
+- Font check function + more default fonts
+- Debug Terminal
+- Modding/Plugin API
+
+
+Version 8
+- Cleaned up message box code. Now it's own function instead of being created inline everytime like a derp
+- Moved everything that was being put into window into window.pdl
+- Popup message when the image that is to be pasted is loading
+- Option to use a proxy to bypass CORS issues (http://crossorigin.me/)
+- Text tool added
