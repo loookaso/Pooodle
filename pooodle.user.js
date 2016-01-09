@@ -6,7 +6,7 @@
 // @description Extended drooodle functionality!
 // @include     http://www.drooodle.com/drdl
 // @include     http://www.drooodle.com/d/*/comment
-// @version     11
+// @version     12
 // @grant       none
 // ==/UserScript==
 
@@ -84,6 +84,10 @@ var Detector=function(){function e(e){var n=!1;for(var i in t){o.style.fontFamil
 //---------------------------------------------------------------
 //---------------------------------------------------------------
 
+function encodeHTML(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+};
+
 //Pooodle Style
 var pStyle = document.createElement("style");
 pStyle.innerHTML="\
@@ -121,7 +125,7 @@ pdl.ready = 0;
 
 
 pdl.specialState = false;
-pdl.version = 11;
+pdl.version = 12;
 
 
 if(localStorage.getItem("pdl.showTerminal") == null){
@@ -134,6 +138,7 @@ if(localStorage.getItem("pdl.settings") == null){
 	pdl.settings = {};
 	pdl.settings.cursor = "crosshair";
 	pdl.settings.clear = false;//does nothing, functionality is in .apply
+	pdl.settings.fonts = [];
 	
 	localStorage.setItem("pdl.settings", JSON.stringify(pdl.settings));
 }else{
@@ -175,10 +180,46 @@ pdl.settingsData.clear.type = "checkbox";
 pdl.settingsData.clear.label = "Clear settings (requires refresh)"
 pdl.settingsData.clear.apply = function(){
 	if(pdl.settingsData.clear.checked == true){
-		console.log("settings cleared");
+		pdl.terminal.important("Settings cleared, refresh the page!");//pdl.terminal coz terminal not defined yet
 		localStorage.removeItem("pdl.settings");
 		localStorage.removeItem("pdl.showTerminal");
 	}
+};
+
+
+if(!pdl.settings.fonts){pdl.settings.fonts = [];};//ugh im so lazy TODO: do this for all of em I guess
+pdl.settingsData.fonts = document.createElement("textarea");
+pdl.settingsData.fonts.label = "Custom Fonts (Put each font name on a separate line.)";
+pdl.settingsData.fonts.value = pdl.settings.fonts.join("\n");
+pdl.settingsData.fonts.style.height = "96px";
+pdl.settingsData.fonts.style.resize = "none";
+pdl.settingsData.fonts.apply = function(){
+	if(pdl.settingsData.fonts.value != ""){
+		pdl.settings.fonts = pdl.settingsData.fonts.value.trim().split("\n");
+	}else{
+		pdl.settings.fonts = [];
+	};
+	for(var i = 0; i<pdl.settings.fonts.length; i++){
+		pdl.settings.fonts[i] = pdl.settings.fonts[i].trim();
+		if(pdl.settings.fonts[i]==""){
+			pdl.settings.fonts.splice(i,1);
+			i--;
+		};
+	};
+	$.each(pdl.settings.fonts, function(i,v){
+		switch(pdl.addFont(v)){
+			case 0:
+				//pdl.terminal.write("Custom font \""+v+"\" added.");
+				break;
+			case 1:
+				pdl.terminal.important("Skipped adding custom font \""+v+"\". Font could not be found.");
+				break;
+			case 2:
+				pdl.terminal.write("Skipped adding duplicate custom font \""+v+"\".");
+				break;
+		}
+	});
+	pdl.settingsData.fonts.value = pdl.settings.fonts.join("\n");
 };
 
 //pdl.messageOverlay("title", "message", {style:"default", align:"center", opacity:0.5, behavior:"none"});
@@ -399,7 +440,7 @@ terminal.write = function(text, caller){
         }
     }
     entry.className = "terminalEntry";
-    entry.innerHTML += text;
+    entry.innerHTML += encodeHTML(text);
     terminal.log.push(entry);
     terminal.body.list.appendChild(entry);
     terminal.body.scrollTop = terminal.body.scrollHeight;
@@ -417,14 +458,14 @@ terminal.error = function(text, caller){
         }
     }
     entry.className = "terminalEntry terminalError";
-    entry.innerHTML += text;
+    entry.innerHTML += encodeHTML(text);
     terminal.log.push(entry);
     terminal.body.list.appendChild(entry);
 	terminal.open();
 	terminal.body.scrollTop = terminal.body.scrollHeight;
 };
 
-terminal.important = function(text, caller){//Todo: make this show a notification even when terminal is closed
+terminal.important = function(text, caller){
     var entry = document.createElement("li");
 	if(caller){
         if(caller.name){
@@ -436,14 +477,14 @@ terminal.important = function(text, caller){//Todo: make this show a notificatio
         }
     }
     entry.className = "terminalEntry terminalImportant";
-    entry.innerHTML += text;
+    entry.innerHTML += encodeHTML(text);
     terminal.log.push(entry);
     terminal.body.list.appendChild(entry);
     terminal.body.scrollTop = terminal.body.scrollHeight;
 	notify(entry.innerHTML);
 };
 
-terminal.return = function(text, caller){//Todo: make this show a notification even when terminal is closed
+terminal.return = function(text, caller){
     var entry = document.createElement("li");
 	if(caller){
         if(caller.name){
@@ -455,7 +496,7 @@ terminal.return = function(text, caller){//Todo: make this show a notification e
         }
     }
     entry.className = "terminalEntry terminalReturn";
-    entry.innerHTML += text;
+    entry.innerHTML += encodeHTML(text);
     terminal.log.push(entry);
     terminal.body.list.appendChild(entry);
     terminal.body.scrollTop = terminal.body.scrollHeight;
@@ -491,10 +532,10 @@ drawCursor.id = "cursor";
 
 $(body).mousemove(function(evt){
 	if(
-		evt.clientX > $(c).offset().left &&
-		evt.clientX < $(c).offset().left+890 &&
-		evt.clientY > $(c).offset().top &&
-		evt.clientY < $(c).offset().top+530
+		evt.pageX > $(c).offset().left &&
+		evt.pageX < $(c).offset().left+890 &&
+		evt.pageY > $(c).offset().top &&
+		evt.pageY < $(c).offset().top+530
 	){
 		drawCursor.style.backgroundImage = 'url(\'data:image/svg+xml;base64,'+btoa('<svg xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:svg="http://www.w3.org/2000/svg" xmlns="http://www.w3.org/2000/svg"><circle cx="'+(sizeSlider.value/2)+'" cy="'+(sizeSlider.value/2)+'" r="'+(sizeSlider.value/2)+'" stroke="black" stroke-width="1" fill="rgba(0,0,0,0)" /></svg>')+'\')';
         drawCursor.style.left = (evt.clientX - (sizeSlider.value/2) )+"px";
@@ -550,16 +591,17 @@ pdl.addFont = function(fontname){
 };
 
 //Call message overlay
-//pdl.messageOverlay("title", "message", {style:"default", align:"center", opacity:0.5, behavior:"none"});
+//pdl.messageOverlay("title", "message", {style:"default", align:"center", opacity:0.5, behavior:"none", type: 2});
 pdl.messageOverlay = function(title, message, options){
     terminal.write("Creating message overlay", this);
-    if (!options){options = {style: "default", align:"center", opacity:0.5, behavior:"none"}};
+    if (!options){options = {style: "default", align:"center", opacity:0.5, behavior:"none", type:2}};
     if (!options.style){options.style="default";};
     if (!options.align){options.align="center";};
     if (!options.opacity){options.opacity=0.5;};
-    if (!options.behavior){options.type="none";};
+    if (!options.behavior){options.behavior="none";};
+	if (!options.type){options.type = 2;};
 	if(!pdl.specialState){
-		pdl.specialState = true;
+		pdl.specialState = options.type;
         var overlay = document.createElement("div");
         overlay.style.position = "fixed";
         overlay.style.display = "block";
@@ -716,7 +758,7 @@ pdl.pasteText = pasteText;
 $(document).on('keydown keyup', function(e){
     if(e.shiftKey && !pdl.specialState){ //Line Tool
         terminal.write("Line tool key event called");
-        var overlay = pdl.messageOverlay("Draw Line", "Click and drag to draw a straight line.", {style: "header", align:"center", opacity: "0"});
+        var overlay = pdl.messageOverlay("Draw Line", "Click and drag to draw a straight line.", {style: "header", align:"center", opacity: "0", type:1});
         
         var ccol = document.getElementById("ccol");
         //having to create the SVG elements through text because it doesnt act properly when we create it normally
@@ -771,7 +813,7 @@ $(document).on('keydown keyup', function(e){
         
     }else if(e.ctrlKey && !pdl.specialState){ //Eyedropper
         terminal.write("Eyedropper key event called");
-        var overlay = pdl.messageOverlay("Eyedropper", "Click to select a color on the canvas.", {style: "header", align:"center", opacity: "0"});
+        var overlay = pdl.messageOverlay("Eyedropper", "Click to select a color on the canvas.", {style: "header", align:"center", opacity: "0", type: 1});
         
         
 
@@ -792,7 +834,7 @@ $(document).on('keydown keyup', function(e){
         
         
     }else{//keyup cleanup
-        if(pdl.specialState && !e.shiftKey && !e.ctrlKey){//gotta check to see if we dont still got those keys down otherwise itll glitch out 
+        if((pdl.specialState==1) && !e.shiftKey && !e.ctrlKey){//gotta check to see if we dont still got those keys down otherwise itll glitch out 
             terminal.write("Cleaning up from key events");
             $("#pTempLine").remove();
             $("#pTempSVG").remove();

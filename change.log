@@ -1,12 +1,19 @@
 CHANGELOG
 _________
 
+
+Version 12
+- Added custom fonts to settings
+- Various bug fixes
+
+
 Version 11
 - Update server moved to github
 - Terminal input
 - Settings system
 - Setting for circle cursor
 - Cleanup for messageOverlay
+
 
 Version 10
 - Save canvas states before added functions to properly support undo ( D.notouch.saveActions(); )
