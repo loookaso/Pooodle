@@ -5,7 +5,9 @@
 // @downloadURL https://raw.githubusercontent.com/haicat/Pooodle/master/pooodle.user.js
 // @description Extended drooodle functionality!
 // @include     http://www.drooodle.com/drdl
+// @include     http://beta.drooodle.com/drdl
 // @include     http://www.drooodle.com/d/*/comment
+// @include     http://beta.drooodle.com/d/*/comment
 // @version     13
 // @grant       none
 // ==/UserScript==
