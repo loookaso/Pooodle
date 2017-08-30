@@ -4,12 +4,12 @@
 // @namespace   http://doodleordie.com/profile/haicat
 // @downloadURL https://raw.githubusercontent.com/haicat/Pooodle/master/pooodle.user.js
 // @description Extended drooodle functionality!
-// @include     http://www.drooodle.com/drdl
-// @include     http://beta.drooodle.com/drdl
-// @include     http://www.drooodle.com/d/*/comment
-// @include     http://beta.drooodle.com/d/*/comment
-// @include     http://beta.drooodle.com/d/*/drdlit
-// @include     http://beta.drooodle.com/drdlit
+// @include     https://www.drooodle.com/drdl
+// @include     https://beta.drooodle.com/drdl
+// @include     https://www.drooodle.com/d/*/comment
+// @include     https://beta.drooodle.com/d/*/comment
+// @include     https://beta.drooodle.com/d/*/drdlit
+// @include     https://beta.drooodle.com/drdlit
 // @version     13
 // @grant       none
 // ==/UserScript==
